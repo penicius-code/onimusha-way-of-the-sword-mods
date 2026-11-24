@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lua:
+    name: Lua syntax (Lua 5.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Compile every Lua file (syntax only)
+        run: |
+          set -e
+          find . -name '*.lua' -not -path './.git/*' -print0 | while IFS= read -r -d '' f; do
+            echo "checking $f"
+            luac5.4 -p "$f"
+          done
+      - name: Run the offline test (the game is replaced by a stub)
+        run: |
+          set -eo pipefail
+          lua5.4 mods/exposure-flash-fix/tests/run_exposure_flash_fix_test.lua mods/exposure-flash-fix/package/reframework/autorun/exposure_flash_fix.lua | tail -n 1
